@@ -93,11 +93,11 @@ resource "aws_route_table_association" "public_assoc" {
 }
 
 resource "aws_instance" "centos" {
-  ami           = "ami-08cb7d4e7a7deb0fd"
+  ami           = "ami-0d9aab1841e55338b"
   instance_type = "t3.medium"
   subnet_id                   = aws_subnet.public_subnet.id
   associate_public_ip_address = true
-  key_name = "CfgMgmtCamp_key"
+  key_name = "CfgMgmtCamp2026_key"
   vpc_security_group_ids = [aws_security_group.my_sg.id]
   tags = {
     Name = "CentOSdemo2"

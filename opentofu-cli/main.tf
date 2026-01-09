@@ -96,14 +96,14 @@ resource "aws_security_group" "summitconnectbrussels_sg" {
 }
 
 
-resource "aws_instance" "rhel" {
-  ami           = "ami-0f098038da0fc50c6"
+resource "aws_instance" "centos" {
+  ami           = "ami-0d9aab1841e55338b"
   instance_type = "t3.medium"
   subnet_id                   = aws_subnet.public_subnet.id
   associate_public_ip_address = true
-  key_name = "SummitConnectBrussels_key"
+  key_name = "CfgMgmtCamp2026_key"
   vpc_security_group_ids = [aws_security_group.summitconnectbrussels_sg.id]
   tags = {
-    Name = "RHELdemo1"
+    Name = "CentOSdemo1"
   }
 }
