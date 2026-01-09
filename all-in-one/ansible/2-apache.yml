@@ -1,0 +1,46 @@
+---
+- name: Install and configure Apache HTTP Server on any Linux distribution
+  hosts: all
+  become: yes
+  # we will gather facts once we know for sure the EC2 instances are up
+  gather_facts: false
+
+  tasks:
+    - name: Wait for the hosts to become reachable
+      wait_for_connection:
+        timeout: 180
+        delay: 5
+        sleep: 5
+
+    - name: Gather system facts
+      ansible.builtin.setup:
+        filter: distribution
+
+    - name: Install httpd package on RHEL
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Ensure httpd is running and enabled
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Create index.html with custom content
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: "{{ message | default('Welcome to Summit Connect Brussels 2025 ') }}<br/><br/>This automation flow was provided to you by the <b>Red Hat Ansible Automation Platform</b>" 
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Test if Apache Web Server runs
+      uri:
+        url: http://{{ inventory_hostname }}
+      register: http_test
+
+    - name: It does!
+      debug:
+        msg: "You can now try to connect to http://{{ inventory_hostname }}"
+      when: http_test.status == 200

@@ -1,0 +1,34 @@
+---
+- name: Install and configure Apache HTTP Server on any Linux distribution
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install httpd package
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Ensure httpd is running and enabled
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Create index.html with custom content
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: "{{ message | default('Hello Summit Connect Brussels 2025') }}<br/><br/>Provided to you by {{ ansible_facts['distribution'] }} Linux" 
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Test if Apache Web Server runs
+      uri:
+        url: http://{{ inventory_hostname }}
+      register: http_test
+
+    - name: It does!
+      debug:
+        msg: "You can now try to connect to http://{{ inventory_hostname }}"
+      when: http_test.status == 200

@@ -1,0 +1,291 @@
+---
+- name: prepare the demo environment
+  hosts: localhost
+  gather_facts: False
+
+  ######################
+  ### NAME YOUR DEMO ###
+  ######################
+
+  vars:
+    demo_name: CfgMgmtCamp2026
+
+  vars_files:
+  - vault.yml
+
+  collections:
+  - ansible.platform
+  - ansible.controller
+
+  tasks:
+  - name: Import pubkey into a new EC2 key pair
+    amazon.aws.ec2_key:
+      name: "{{ demo_name }}_key"
+      region: "{{ aws_region }}"
+      access_key: "{{ aws_access }}"
+      secret_key: "{{ aws_secret }}"
+      state: present
+      key_material: "{{ ssh_public_key }}"
+
+  - name: Create an S3 bucket to store the OpenTofu state file
+    amazon.aws.s3_bucket:
+      name: "{{ aws_bucket_name }}" 
+      region: "{{ aws_region }}"
+      access_key: "{{ aws_access }}"
+      secret_key: "{{ aws_secret }}"
+      state: present
+
+  - name: Create AAP organization
+    ansible.platform.organization:
+      name: "{{ demo_name }}"
+      state: present
+      gateway_hostname: "{{ aap2_host }}"
+      gateway_username: "{{ aap2_username }}"
+      gateway_password: "{{ aap2_password }}"
+      gateway_validate_certs: true
+
+  - name: Add the EE that contains OpenTofu binary and collection
+    ansible.controller.execution_environment:
+      name: "EE_opentofu"
+      state: present
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: true
+      image: quay.io/redhatbelux/ee_opentofu
+
+  - name: Create credential that will allow AAP to access AWS
+    ansible.controller.credential:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      name: "{{ demo_name }} AWS creds"
+      organization: "{{ demo_name }}"
+      state: present
+      credential_type: "Amazon Web Services"
+      inputs:
+        username: "{{ aws_access }}"
+        password: "{{ aws_secret }}"
+
+  - name: Create OpenTofu State credential
+    ansible.controller.credential:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: true
+      name: "{{ demo_name }} OpenTofu state credential"
+      credential_type: Terraform backend configuration
+      organization: "{{ demo_name }}"
+      inputs:
+        configuration: |
+          bucket = "{{ aws_bucket_name }}"
+          key = "state.tfstate"
+          region = "{{ aws_region }}"
+          access_key = "{{ aws_access }}"
+          secret_key = "{{ aws_secret }}"
+
+  - name: Create machine credential to access EC2 instances
+    ansible.controller.credential:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: true
+      name: "{{ demo_name }} AWS EC2 SSH"
+      credential_type: Machine
+      organization: "{{ demo_name }}"
+      inputs:
+        username: ec2-user
+        ssh_key_data: "{{ ssh_private_key }}"
+
+  - name: create an inventory
+    ansible.controller.inventory:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: true
+      name: "{{ demo_name }} inventory"
+      organization: "{{ demo_name }}"
+      state: present
+
+  - name: Add a dynamic source to the inventory using the OpenTofu state file
+    ansible.controller.inventory_source:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: true
+      name: "OpenTofu State"
+      description: Source for inventory
+      execution_environment: "EE_opentofu"
+      inventory: "{{ demo_name }} inventory"
+      source: terraform
+      credential: "{{ demo_name }} OpenTofu state credential"
+      overwrite: true
+      update_on_launch: true
+      organization: "{{ demo_name }}"
+      verbosity: 1
+      source_vars:
+        backend_type: s3
+        hostnames:
+        - public_dns
+
+  - name: Create the project
+    ansible.controller.project:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      name: "{{ demo_name }}"
+      organization: "{{ demo_name }}"
+      scm_type: git
+      scm_update_on_launch: True
+      scm_update_cache_timeout: 60
+      scm_url: https://github.com/RedHatBelux/AAP2_opentofu
+      state: present
+
+  - name: Update project before creating the jobs
+    ansible.controller.project_update:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      project: "{{ demo_name }}"
+      timeout: 30
+  
+  - name: Create job for opentofu plan
+    ansible.controller.job_template:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      name: "1 - OpenTofu plan"
+      job_type: "check"
+      organization: "{{ demo_name }}"
+      state: present
+      project: "{{ demo_name }}"
+      inventory: "{{ demo_name }} inventory"
+      playbook: "all-in-one/ansible/1-deploy.yml"
+      execution_environment: EE_opentofu
+      credentials:
+      - "{{ demo_name }} AWS creds"
+      - "{{ demo_name }} OpenTofu state credential"
+
+  - name: Create job for OpenTofu apply
+    ansible.controller.job_template:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      name: "2 - OpenTofu apply"
+      job_type: "run"
+      organization: "{{ demo_name }}"
+      state: present
+      project: "{{ demo_name }}"
+      inventory: "{{ demo_name }} inventory"
+      playbook: "all-in-one/ansible/1-deploy.yml"
+      execution_environment: EE_opentofu
+      credentials:
+      - "{{ demo_name }} AWS creds"
+      - "{{ demo_name }} OpenTofu state credential"
+
+  - name: Create job for deploying Apache Web Server
+    ansible.controller.job_template:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      name: "3 - Install Apache Web Server"
+      organization: "{{ demo_name }}"
+      state: present
+      project: "{{ demo_name }}"
+      inventory: "{{ demo_name }} inventory"
+      playbook: "all-in-one/ansible/2-apache.yml"
+      credentials:
+      - "{{ demo_name }} AWS EC2 SSH"
+      extra_vars:
+        message: Hello World
+
+  - name: Create job for deleting EC2 instances
+    ansible.controller.job_template:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      name: "4 - OpenTofu destroy"
+      organization: "{{ demo_name }}"
+      state: present
+      project: "{{ demo_name }}"
+      inventory: "{{ demo_name }} inventory"
+      playbook: "all-in-one/ansible/3-destroy.yml"
+      execution_environment: EE_opentofu
+      credentials:
+      - "{{ demo_name }} AWS creds"
+      - "{{ demo_name }} OpenTofu state credential"
+
+  - name: Create a workflow that plugs everything together
+    ansible.controller.workflow_job_template:
+      name: "Workflow all in one"
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      organization: "{{ demo_name }}"
+      state: present
+      schema:
+      - identifier: opentofu_plan
+        unified_job_template:
+          organization:
+            name: "{{ demo_name }}"
+          name: "1 - OpenTofu plan"
+          type: job_template
+        related:
+          success_nodes:
+            - identifier: approve_plan
+      - identifier: approve_plan
+        all_parents_must_converge: false
+        unified_job_template:
+          organization:
+            name: "{{ demo_name }}"
+          name: "Do you approve this opentofu plan?"
+          type: workflow_approval
+          timeout: 300
+        related:
+          success_nodes:
+            - identifier: opentofu_apply
+      - identifier: opentofu_apply
+        unified_job_template:
+          organization:
+            name: "{{ demo_name }}"
+          name: "2 - OpenTofu apply"
+          alias: "opentofu plan"
+          type: job_template
+        related:
+          success_nodes:
+            - identifier: apache
+          failure_nodes:
+            - identifier: approve_cleanup
+      - identifier: apache
+        unified_job_template:
+          organization:
+            name: "{{ demo_name }}"
+          name: "3 - Install Apache Web Server"
+          type: job_template
+      - identifier: approve_cleanup
+        all_parents_must_converge: false
+        unified_job_template:
+          organization:
+            name: "{{ demo_name }}"
+          name: "Do you approve cleaning up EC2 instances?"
+          type: workflow_approval
+          timeout: 600
+        related:
+          success_nodes:
+            - identifier: cleanup
+      - identifier: cleanup
+        all_parents_must_converge: false
+        unified_job_template:
+          organization:
+            name: "{{ demo_name }}"
+          name: "4 - OpenTofu destroy"
+          type: job_template
+    tags: workflow

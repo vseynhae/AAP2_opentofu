@@ -1,0 +1,17 @@
+---
+- name: Deploy resources via OpenTofu
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Create EC2s with OpenTofu
+      cloud.terraform.terraform:
+        project_path: ../opentofu/
+        state: present
+        force_init: true
+        backend_config_files:
+          - "{{ lookup('ansible.builtin.env', 'TF_BACKEND_CONFIG_FILE') }}"
+      register: output
+
+    - debug:
+        var: output['stdout_lines']
