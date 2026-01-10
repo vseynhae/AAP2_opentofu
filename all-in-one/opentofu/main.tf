@@ -93,7 +93,7 @@ resource "aws_route_table_association" "public_assoc" {
 }
 
 resource "aws_instance" "centos" {
-  ami           = "ami-0d9aab1841e55338b"
+  ami           = "ami-001a3190f8527e587"
   instance_type = "t3.medium"
   subnet_id                   = aws_subnet.public_subnet.id
   associate_public_ip_address = true
