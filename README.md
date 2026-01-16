@@ -28,7 +28,8 @@ We will integrate both technologies inside AAP:
 
 - an AWS account with sufficient permissions
 - an AAP 2.6 with admin rights
-- an Ansible Execution Environment that contains the `cloud.terraform` Ansible Collection and the `opentofu` binary (prebuilt for the demo and available at `quay.io/redhatbelux/ee_opentofu`)
+- the `cloud.terraform` collection with OpenTofu support [^1]
+- an Ansible Execution Environment that contains the `cloud.terraform` Ansible Collection and the `opentofu` binary (prebuilt for the demo and available at `quay.io/redhatbelux/ee_opentofu`)[^2]
 - `botocore` & `boto3` python libraries are needed on the machine used to stand up the demo environment.
 
 ## Preparing your AAP and AWS environments
@@ -97,3 +98,6 @@ When the OpenTofu run is done, the state file is stored in the S3 bucket.
 The workflow will refresh the inventory (based on the state file).
 
 The next job will deploy and configure Apache on the instances found in the OpenTofu state file.
+
+[^1]: The `cloud.terraform` collection including OpenTofu support can be found [here](https://github.com/vseynhae/cloud.terraform)
+[^2]: Code to build `ee_opentofu` image can be found [here](https://github.com/RedHatBelux/ee_opentofu)
