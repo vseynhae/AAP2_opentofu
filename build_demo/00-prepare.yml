@@ -107,7 +107,7 @@
       organization: "{{ demo_name }}"
       inputs:
         username: ec2-user
-        ssh_key_data: "{{ ssh_private_key }}"
+        ssh_key_data: "{{ lookup('file', '{{ ssh_private_key_path }}') }}"
 
   - name: create an inventory
     ansible.controller.inventory:
