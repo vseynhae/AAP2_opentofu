@@ -107,7 +107,7 @@
       organization: "{{ demo_name }}"
       inputs:
         username: ec2-user
-        ssh_key_data: "{{ ssh_private_key_path }}"
+        ssh_key_data: "{{ lookup('file', '{{ ssh_private_key_path }}') }}"
 
   - name: create an inventory
     ansible.controller.inventory:
@@ -288,6 +288,7 @@
           organization:
             name: "{{ demo_name }}"
           name: "5 - OpenTofu plan denied"
+          type: job_template
       - identifier: opentofu_apply
         unified_job_template:
           organization:

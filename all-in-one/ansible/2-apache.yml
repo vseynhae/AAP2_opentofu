@@ -30,7 +30,7 @@
     - name: Create index.html with custom content
       ansible.builtin.copy:
         dest: /var/www/html/index.html
-        content: "{{ message | default('Welcome to Summit Connect Brussels 2025 ') }}<br/><br/>This automation flow was provided to you by the <b>Red Hat Ansible Automation Platform</b>" 
+        content: "{{ message | default('Welcome to the Config Managment Camp 2026 ') }}<br/><br/>This automation flow was provided to you by the <b>Red Hat Ansible Automation Platform</b>" 
         owner: root
         group: root
         mode: '0644'
