@@ -233,6 +233,23 @@
       - "{{ demo_name }} AWS creds"
       - "{{ demo_name }} OpenTofu state credential"
 
+  - name: Create job for opentofu apply denied
+    ansible.controller.job_template:
+      controller_host: "{{ aap2_host }}"
+      controller_username: "{{ aap2_username }}"
+      controller_password: "{{ aap2_password }}"
+      validate_certs: True
+      name: "5 - OpenTofu plan denied"
+      organization: "{{ demo_name }}"
+      state: present
+      project: "{{ demo_name }}"
+      inventory: "{{ demo_name }} inventory"
+      playbook: "all-in-one/ansible/3-destroy.yml"
+      execution_environment: EE_opentofu
+      credentials:
+      - "{{ demo_name }} AWS creds"
+      - "{{ demo_name }} OpenTofu state credential"
+
   - name: Create a workflow that plugs everything together
     ansible.controller.workflow_job_template:
       name: "Workflow all in one"
@@ -263,6 +280,15 @@
         related:
           success_nodes:
             - identifier: opentofu_apply
+          failure_nodes:
+            - identifier: apply_not_approved
+      - identifier: apply_not_approved
+        all_parents_must_converge: false
+        unified_job_template:
+          organization:
+            name: "{{ demo_name }}"
+          name: "5 - OpenTofu plan denied"
+          type: job_template
       - identifier: opentofu_apply
         unified_job_template:
           organization:
