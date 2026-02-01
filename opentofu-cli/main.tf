@@ -7,12 +7,6 @@ terraform {
   }
 }
 
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
-
 provider "aws" {
   region = "eu-central-1"
 }
@@ -22,7 +16,7 @@ resource "aws_vpc" "main_vpc" {
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = {
-    Name = "main-vpc-${random_string.suffix.result}"
+    Name = "main-vpc"
   }
 }
 
@@ -32,21 +26,21 @@ resource "aws_subnet" "public_subnet" {
   availability_zone = "eu-central-1a"
   map_public_ip_on_launch = true
   tags = {
-    Name = "public-subnet-${random_string.suffix.result}"
+    Name = "public-subnet"
   }
 }
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main_vpc.id
   tags = {
-    Name = "main-igw-${random_string.suffix.result}"
+    Name = "main-igw"
   }
 }
 
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.main_vpc.id
   tags = {
-    Name = "public-route-table-${random_string.suffix.result}"
+    Name = "public-route-table"
   }
 }
 
@@ -61,8 +55,8 @@ resource "aws_route_table_association" "public_assoc" {
   route_table_id = aws_route_table.public_rt.id
 }
 
-resource "aws_security_group" "summitconnectbrussels_sg" {
-  name        = "summitconnectbrussels-sg-${random_string.suffix.result}"
+resource "aws_security_group" "cfgmgmtcamp_sg" {
+  name        = "cfgmgmtcamp-sg"
   description = "Allow SSH and HTTP"
   vpc_id      = aws_vpc.main_vpc.id
 
@@ -91,7 +85,7 @@ resource "aws_security_group" "summitconnectbrussels_sg" {
   }
 
   tags = {
-    Name = "summitconnectbrussels-sg-${random_string.suffix.result}"
+    Name = "cfgmgmtcamp-sg}"
   }
 }
 
@@ -102,7 +96,7 @@ resource "aws_instance" "centos" {
   subnet_id                   = aws_subnet.public_subnet.id
   associate_public_ip_address = true
   key_name = "CfgMgmtCamp2026_key"
-  vpc_security_group_ids = [aws_security_group.summitconnectbrussels_sg.id]
+  vpc_security_group_ids = [aws_security_group.cfgmgmtcamp_sg.id]
   tags = {
     Name = "CentOSdemo1"
   }

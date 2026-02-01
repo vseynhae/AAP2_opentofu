@@ -16,7 +16,7 @@
       ansible.builtin.setup:
         filter: distribution
 
-    - name: Install httpd package on RHEL
+    - name: Install httpd package on CentOS
       ansible.builtin.dnf:
         name: httpd
         state: present

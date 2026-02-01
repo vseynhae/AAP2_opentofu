@@ -54,17 +54,6 @@
       validate_certs: true
       image: quay.io/redhatbelux/ee_opentofu:1.10.6
 
-  - name: Add the EE that contains OpenTofu binary and collection
-    ansible.controller.execution_environment:
-      name: "EE_opentofu_old"
-      state: present
-      controller_host: "{{ aap2_host }}"
-      controller_username: "{{ aap2_username }}"
-      controller_password: "{{ aap2_password }}"
-      validate_certs: true
-      image: quay.io/redhatbelux/ee_opentofu:1.6
-
-
   - name: Create credential that will allow AAP to access AWS
     ansible.controller.credential:
       controller_host: "{{ aap2_host }}"
